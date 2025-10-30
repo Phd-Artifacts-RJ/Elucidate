@@ -1,0 +1,23 @@
+# --- Core (needed to run the Streamlit app and classical ML stack) ---
+streamlit
+pandas
+numpy
+scikit-learn
+scipy
+matplotlib
+shap
+python-dotenv
+openai
+distro
+
+# --- Profiling (enable Step 1.3 YData profiles; either one works) ---
+ydata-profiling
+pandas-profiling
+
+# --- Imbalance handling (enable SMOTE toggle) ---
+imbalanced-learn
+
+# --- Optional: PyTorch-based tabular transformers (used only if enabled) ---
+# torch
+# tab-transformer-pytorch
+# pytorch-tabular

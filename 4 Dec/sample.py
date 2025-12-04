@@ -1,0 +1,108 @@
+import numpy as np
+from sklearn.datasets import make_classification
+from sklearn.model_selection import train_test_split, GridSearchCV, cross_val_score
+from sklearn.ensemble import AdaBoostClassifier
+from sklearn.tree import DecisionTreeClassifier
+
+# sample.py
+# Showcase: AdaBoost classification with scikit-learn
+# Run: python sample.py
+
+from sklearn.metrics import (
+    accuracy_score,
+    classification_report,
+    confusion_matrix,
+    roc_auc_score,
+    RocCurveDisplay,
+)
+import matplotlib.pyplot as plt
+
+def create_data(n_samples=1000, n_features=20, random_state=42):
+    X, y = make_classification(
+        n_samples=n_samples,
+        n_features=n_features,
+        n_informative=5,
+        n_redundant=2,
+        n_repeated=0,
+        n_classes=2,
+        class_sep=1.0,
+        random_state=random_state,
+    )
+    return X, y
+
+def train_and_evaluate(X_train, X_test, y_train, y_test):
+    # Use a shallow decision stump as the base estimator (common with AdaBoost)
+    base = DecisionTreeClassifier(max_depth=1, random_state=0)
+    model = AdaBoostClassifier(estimator=base, n_estimators=100, learning_rate=1.0, random_state=0)
+
+    model.fit(X_train, y_train)
+
+    y_pred = model.predict(X_test)
+    y_proba = model.predict_proba(X_test)[:, 1]
+
+    print("Accuracy:", accuracy_score(y_test, y_pred))
+    print("ROC AUC:", roc_auc_score(y_test, y_proba))
+    print("\nClassification report:\n", classification_report(y_test, y_pred))
+    print("Confusion matrix:\n", confusion_matrix(y_test, y_pred))
+
+    # Feature importances (ensemble of stumps -> importance across features)
+    importances = model.feature_importances_
+    top_idx = np.argsort(importances)[::-1][:10]
+    print("\nTop feature importances (index: importance):")
+    for i in top_idx:
+        print(f"  {i}: {importances[i]:.4f}")
+
+    # Plot ROC curve
+    plt.figure(figsize=(6, 5))
+    RocCurveDisplay.from_estimator(model, X_test, y_test)
+    plt.title("AdaBoost ROC curve")
+    plt.tight_layout()
+
+    # Plot feature importances
+    plt.figure(figsize=(8, 4))
+    plt.bar(range(len(importances)), importances)
+    plt.title("Feature importances (AdaBoost)")
+    plt.xlabel("Feature index")
+    plt.ylabel("Importance")
+    plt.tight_layout()
+
+    plt.show()
+    return model
+
+def grid_search_example(X, y):
+    base = DecisionTreeClassifier(max_depth=1, random_state=0)
+    ada = AdaBoostClassifier(estimator=base, random_state=0)
+
+    param_grid = {
+        "n_estimators": [50, 100, 200],
+        "learning_rate": [0.01, 0.1, 1.0],
+    }
+
+    gs = GridSearchCV(ada, param_grid, cv=5, scoring="roc_auc", n_jobs=-1)
+    gs.fit(X, y)
+    print("GridSearch best params:", gs.best_params_)
+    print("GridSearch best CV ROC AUC:", gs.best_score_)
+    return gs.best_estimator_
+
+def cross_val_example(model, X, y):
+    scores = cross_val_score(model, X, y, cv=5, scoring="accuracy")
+    print("Cross-val accuracy scores:", np.round(scores, 4))
+    print("Mean CV accuracy:", np.mean(scores))
+
+if __name__ == "__main__":
+    X, y = create_data()
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.25, random_state=1, stratify=y)
+
+    print("Training & evaluating a baseline AdaBoost model...")
+    model = train_and_evaluate(X_train, X_test, y_train, y_test)
+
+    print("\nRunning grid search to tune n_estimators and learning_rate...")
+    best_model = grid_search_example(X_train, y_train)
+
+    print("\nEvaluate best model from GridSearch on held-out test set:")
+    y_pred = best_model.predict(X_test)
+    print("Accuracy:", accuracy_score(y_test, y_pred))
+    print("ROC AUC:", roc_auc_score(y_test, best_model.predict_proba(X_test)[:, 1]))
+
+    print("\nOptional: cross-validation on the tuned model:")
+    cross_val_example(best_model, X, y)
